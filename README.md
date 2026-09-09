@@ -80,3 +80,46 @@ make clean
 ```
 
 Удаляет собранный бинарник.
+
+## Разработка
+
+Парсинг markdown, фильтрация по заголовкам и контракт рендеринга вынесены в общую библиотеку [md-libs](https://github.com/dimkarp93/md-libs) — та же библиотека используется в [md-pdf](https://github.com/dimkarp93/md-pdf). В этом репозитории остаётся только рендеринг в OOXML и разбор флагов.
+
+Обычная сборка тянет md-libs как зависимость с GitHub, ничего настраивать не нужно:
+
+```bash
+make build
+```
+
+Если нужно править библиотеку и CLI одновременно, склонируйте md-libs рядом и включите workspace:
+
+```bash
+git clone https://github.com/dimkarp93/md-libs ../md-libs
+make configure
+```
+
+`make configure` копирует `go.work.local` в `go.work` — после этого сборка и тесты берут md-libs из соседней папки, а не из сети. Сам `go.work` не коммитится (он в `.gitignore`), поэтому CI и `go install` продолжают работать с опубликованной версией.
+
+```bash
+make unconfigure
+```
+
+Возвращает сборку на опубликованную версию библиотеки.
+
+### Тесты
+
+```sh
+make test                  # тесты рендерера и сквозные тесты CLI
+make test-v                # то же, с именами тестов
+make test-run T=TestCLIVersion
+make cover                 # покрытие
+make check                 # vet + test
+```
+
+Общее ядро (парсинг, фильтры, пайплайн) тестируется в [md-libs](https://github.com/dimkarp93/md-libs); здесь проверяется только то, что специфично для этого CLI. `make test-all` в md-libs прогоняет всё сразу.
+
+Обновление до новой версии md-libs:
+
+```bash
+GOWORK=off go get github.com/dimkarp93/md-libs@v0.2.0
+```
