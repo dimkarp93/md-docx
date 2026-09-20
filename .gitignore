@@ -1,2 +1,5 @@
 /md-docx
 /dist/
+/go.work
+/go.work.sum
+coverage.out
