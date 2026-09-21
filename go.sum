@@ -1,5 +1,7 @@
 github.com/dimkarp93/install-libs v0.1.0 h1:hRwHMtrovfI5aYdlLEC85f8ye/rnYJIgU4SwrBfWQqo=
 github.com/dimkarp93/install-libs v0.1.0/go.mod h1:vRxTchW9exuc70jxyA0hG9JljUd1MmO7NLDd6r8w2UM=
+github.com/dimkarp93/install-libs v0.1.1 h1:OX0yFKmTfDAVLKkanhP5L1tiB24YKDG5+T+lPCJomew=
+github.com/dimkarp93/install-libs v0.1.1/go.mod h1:vRxTchW9exuc70jxyA0hG9JljUd1MmO7NLDd6r8w2UM=
 github.com/dimkarp93/md-libs v0.1.0 h1:3A1fMu/c4N3r+mrSeq1+dy+lPBBqK8j/xSRtERCF1jo=
 github.com/dimkarp93/md-libs v0.1.0/go.mod h1:rF246oeDOboAfNp9NVOltZ9Hx1sk7sPQSsvyXNntg30=
 github.com/dimkarp93/md-libs v0.1.1 h1:05grWZCAh4doBT5HqycoViUCVjgppfGXhcJPYvrtp7o=
