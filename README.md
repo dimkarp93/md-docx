@@ -1,125 +1,129 @@
 # md-docx
 
-Простая утилита для конвертации Markdown-файла в `.docx`. Без внешних зависимостей — использует только стандартную библиотеку Go, `.docx` собирается напрямую как OOXML-архив.
+A simple utility that converts a Markdown file into `.docx`. No external dependencies — it uses only the Go standard library, and the `.docx` is assembled directly as an OOXML archive.
 
-## Поддерживаемый синтаксис
+## Supported syntax
 
-1. Заголовки: `#` … `######` (уровни 1–6).
-2. Жирный: `**текст**` или `__текст__`.
-3. Курсив: `*текст*` или `_текст_`.
-4. Жирный курсив: `***текст***`.
-5. Блоки кода: `` ```...``` `` — рендерятся моноширинным шрифтом с серой заливкой.
+1. Headings: `#` … `######` (levels 1–6).
+2. Bold: `**text**` or `__text__`.
+3. Italic: `*text*` or `_text_`.
+4. Bold italic: `***text***`.
+5. Code blocks: `` ```...``` `` — rendered in a monospace font with a grey fill.
 
-Всё остальное считается обычным текстовым параграфом.
+Everything else is treated as a regular text paragraph.
 
-## Сборка
+## Build
 
-Требуется Go 1.26+.
+Requires Go 1.26+.
 
 ```bash
 make build
 ```
 
-Бинарник появится в `./bin/md-docx`.
+The binary appears at `./bin/md-docx`.
 
-## Использование
+## Usage
 
 ```bash
 ./bin/md-docx --in input.md --out output.docx
 ```
 
-- `--in` (опционально) — путь к исходному Markdown-файлу. Если не указан, читает из stdin.
-- `--out` (опционально) — путь к выходному `.docx`. Если не указан, пишет в stdout.
-- `--pages` (опционально) — какие страницы включить, например `1,3-5`. По умолчанию — все страницы, кроме страницы 0.
-- `--heads` (опционально) — фильтр по заголовкам, например `h2:result,h3:resume`. По умолчанию фильтрации нет.
+- `--in` (optional) — path to the source Markdown file. If omitted, reads from stdin.
+- `--out` (optional) — path to the output `.docx`. If omitted, writes to stdout.
+- `--pages` (optional) — which pages to include, for example `1,3-5`. By default — every page except page 0.
+- `--heads` (optional) — a heading filter, for example `h2:result,h3:resume`. By default there is no filtering.
 
-Также поддерживается через stdin/stdout:
+stdin/stdout are supported as well:
 
 ```bash
 cat input.md | ./bin/md-docx > output.docx
 ```
 
-### Frontmatter и страницы
+### Frontmatter and pages
 
-Если файл начинается со строки `---`, всё до следующей строки `---` считается frontmatter (метаданные — YAML/TOML/JSON) и трактуется как страница 0. Она не попадает в результат, если явно не запрошена через `--pages=0`.
+If the file starts with a `---` line, everything up to the next `---` line is treated as frontmatter (metadata — YAML/TOML/JSON) and is handled as page 0. It does not make it into the result unless it is requested explicitly through `--pages=0`.
 
-Все остальные строки, состоящие ровно из `---`, считаются разрывом страницы — они делят документ на страницы 1, 2, 3, … в порядке следования. `---` внутри блока кода (`` ``` ``) разрывом страницы не считается.
+Every other line consisting of exactly `---` is a page break — they split the document into pages 1, 2, 3, … in order. A `---` inside a code block (`` ``` ``) is not a page break.
 
-По умолчанию в `.docx` попадают все страницы, кроме страницы 0. Чтобы выбрать конкретные страницы:
+By default the `.docx` contains every page except page 0. To pick specific pages:
 
 ```bash
 ./bin/md-docx --in input.md --pages=1,3-5 --out output.docx
 ```
 
-### Фильтр по заголовкам
+### Heading filter
 
-`--heads` ограничивает вывод только содержимым под указанными заголовками (и их вложенным контентом). Формат — список через запятую, каждый элемент вида `h<уровень>:<имя>`, либо просто `<имя>` без уровня — тогда совпадение ищется на любом уровне:
+`--heads` limits the output to the content under the given headings (and their nested content). The format is a comma-separated list where each item looks like `h<level>:<name>`, or just `<name>` without a level — in which case a match is looked for at any level:
 
 ```bash
 ./bin/md-docx --in input.md --heads=h2:result,h3:resume,summary --out output.docx
 ```
 
-Это означает: оставить только то, что находится внутри заголовка 2-го уровня «result», внутри заголовка 3-го уровня «resume», либо внутри заголовка «summary» любого уровня (сравнение точное, без учёта регистра и markdown-разметки в тексте заголовка). Заголовок «вложен» в другой, если идёт после него и имеет более глубокий уровень — вложенность обрывается на первом заголовке того же или более высокого уровня.
+This means: keep only what is inside the level-2 heading "result", inside the level-3 heading "resume", or inside a heading "summary" at any level (the comparison is exact, ignoring case and markdown markup in the heading text). A heading is "nested" inside another if it comes after it and has a deeper level — the nesting ends at the first heading of the same or a higher level.
 
-Вложенность заголовков считается по всему выбранному документу целиком (после применения `--pages`), а не отдельно на каждой странице — то есть, если совпавший заголовок находится на одной странице, а его дочерние заголовки идут после разрыва страницы (`---`) на следующей, они всё равно считаются его потомками и попадают в вывод.
+Heading nesting is computed across the selected document as a whole (after `--pages` is applied), not per page — that is, if a matched heading is on one page while its child headings come after a page break (`---`) on the next one, they still count as its descendants and make it into the output.
 
-Между каждыми двумя соседними выбранными страницами в итоговый `.docx` добавляется настоящий разрыв страницы (Word/LibreOffice начнёт следующую страницу с новой физической страницы документа). Разрыв ставится независимо от `--heads` — если контент по обе стороны границы прошёл фильтр, разрыв между ним сохраняется.
+Between every two adjacent selected pages a real page break is added to the resulting `.docx` (Word/LibreOffice will start the next page on a new physical page of the document). The break is inserted regardless of `--heads` — if the content on both sides of the boundary passed the filter, the break between them is preserved.
 
-`--root-head-hide` — если передан вместе с `--heads`, скрывает сами заголовки, по которым сработал матч, но оставляет их содержимое (включая вложенные заголовки):
+`--root-head-hide` — when passed together with `--heads`, hides the matched headings themselves but keeps their content (including nested headings):
 
 ```bash
 ./bin/md-docx --in input.md --heads=result --root-head-hide --out output.docx
 ```
 
-Если `--heads` не задан, фильтрации нет — выводится весь контент выбранных страниц.
+If `--heads` is not given, there is no filtering — all the content of the selected pages is emitted.
 
-## Очистка
+## Clean
 
 ```bash
 make clean
 ```
 
-Удаляет собранный бинарник.
+Removes the built binary.
 
-## Разработка
+## Development
 
-Парсинг markdown, фильтрация по заголовкам и контракт рендеринга вынесены в общую библиотеку [md-libs](https://github.com/dimkarp93/md-libs) — та же библиотека используется в [md-pdf](https://github.com/dimkarp93/md-pdf). В этом репозитории остаётся только рендеринг в OOXML и разбор флагов.
+Markdown parsing, heading filtering and the rendering contract live in the shared library [md-libs](https://github.com/dimkarp93/md-libs) — the same library is used by [md-pdf](https://github.com/dimkarp93/md-pdf). What remains in this repository is only the OOXML rendering and the flag parsing.
 
-Обычная сборка тянет md-libs как зависимость с GitHub, ничего настраивать не нужно:
+A normal build pulls md-libs from GitHub as a dependency, nothing has to be configured:
 
 ```bash
 make build
 ```
 
-Если нужно править библиотеку и CLI одновременно, склонируйте md-libs рядом и включите workspace:
+If you need to change the library and the CLI at the same time, clone md-libs next to this repository and enable the workspace:
 
 ```bash
 git clone https://github.com/dimkarp93/md-libs ../md-libs
 make configure
 ```
 
-`make configure` копирует `go.work.local` в `go.work` — после этого сборка и тесты берут md-libs из соседней папки, а не из сети. Сам `go.work` не коммитится (он в `.gitignore`), поэтому CI и `go install` продолжают работать с опубликованной версией.
+`make configure` copies `go.work.local` to `go.work` — after that the build and the tests take md-libs from the neighbouring directory instead of the network. `go.work` itself is not committed (it is in `.gitignore`), so CI and `go install` keep working with the published version.
 
 ```bash
 make unconfigure
 ```
 
-Возвращает сборку на опубликованную версию библиотеки.
+Returns the build to the published version of the library.
 
-### Тесты
+### Tests
 
 ```sh
-make test                  # тесты рендерера и сквозные тесты CLI
-make test-v                # то же, с именами тестов
+make test                  # renderer tests and end-to-end CLI tests
+make test-v                # the same, with test names
 make test-run T=TestCLIVersion
-make cover                 # покрытие
+make cover                 # coverage
 make check                 # vet + test
 ```
 
-Общее ядро (парсинг, фильтры, пайплайн) тестируется в [md-libs](https://github.com/dimkarp93/md-libs); здесь проверяется только то, что специфично для этого CLI. `make test-all` в md-libs прогоняет всё сразу.
+The shared core (parsing, filters, pipeline) is tested in [md-libs](https://github.com/dimkarp93/md-libs); only what is specific to this CLI is checked here. `make test-all` in md-libs runs everything at once.
 
-Обновление до новой версии md-libs:
+Upgrading to a new version of md-libs:
 
 ```bash
-GOWORK=off go get github.com/dimkarp93/md-libs@v0.2.0
+GOWORK=off go get github.com/dimkarp93/md-libs@v0.1.1
 ```
+
+## License
+
+[MIT](LICENSE)
