@@ -46,12 +46,27 @@ clean:
 
 bump-patch:
 	@v=$$(tr -d '[:space:]' < versions.txt); MAJ=$${v%%.*}; rest=$${v#*.}; MIN=$${rest%%.*}; PAT=$${rest##*.}; printf '%s.%s.%s\n' "$$MAJ" "$$MIN" "$$((PAT + 1))" > versions.txt; cat versions.txt
+	@$(MAKE) --no-print-directory _bump-commit LEVEL=patch
 
 bump-minor:
 	@v=$$(tr -d '[:space:]' < versions.txt); MAJ=$${v%%.*}; rest=$${v#*.}; MIN=$${rest%%.*}; printf '%s.%s.0\n' "$$MAJ" "$$((MIN + 1))" > versions.txt; cat versions.txt
+	@$(MAKE) --no-print-directory _bump-commit LEVEL=minor
 
 bump-major:
 	@v=$$(tr -d '[:space:]' < versions.txt); MAJ=$${v%%.*}; printf '%s.0.0\n' "$$((MAJ + 1))" > versions.txt; cat versions.txt
+	@$(MAKE) --no-print-directory _bump-commit LEVEL=major
+
+.PHONY: _bump-commit
+_bump-commit:
+	@v=$$(tr -d '[:space:]' < versions.txt); \
+	if git rev-parse -q --verify "refs/tags/v$$v" >/dev/null; then \
+		git checkout -- versions.txt; echo "tag v$$v already exists" >&2; exit 1; \
+	fi; \
+	git commit -q -m "bump $(LEVEL)" -- versions.txt && git tag "v$$v" || exit 1; \
+	rc=0; for r in $$(git remote); do \
+		git push -q "$$r" HEAD --tags || { echo "push to $$r failed" >&2; rc=1; }; \
+	done; \
+	echo "Tagged v$$v"; exit $$rc
 
 vendor:
 	GOWORK=off go mod tidy
