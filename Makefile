@@ -1,7 +1,9 @@
 BINARY := md-docx
 VERSION := $(shell tr -d '[:space:]' < versions.txt)
+export GOWORK := off
+export GOFLAGS := -mod=vendor
 
-.PHONY: build test test-v test-run cover check clean configure unconfigure bump-patch bump-minor bump-major
+.PHONY: build test test-v test-run cover check clean bump-patch bump-minor bump-major
 
 CHANNEL ?= local
 
@@ -19,40 +21,28 @@ build:
 	  -ldflags="-s -w -X main.version=$(VERSION) -X main.origin=$$o -X main.upstream=$$up -X main.commit=$$c -X main.channel=$(CHANNEL)" \
 	  -o $(BINARY) ./cmd/md-docx
 
-test: hint
+test:
 	go test ./...
 
-test-v: hint
+test-v:
 	go test -v ./...
 
-test-run: hint
+test-run:
 	@test -n "$(T)" || { echo "specify a test: make test-run T=TestPageBreak"; exit 1; }
 	go test -v -run '$(T)' ./...
 
-cover: hint
+cover:
 	go test -coverprofile=coverage.out ./...
 	go tool cover -func=coverage.out | tail -1
 	@echo "detailed report: go tool cover -html=coverage.out"
 
 check: vet test
 
-vet: hint
+vet:
 	go vet ./...
-
-hint:
-	@test -f go.work -o -f go.sum || echo "hint: md-libs is unavailable — run make configure (requires ../md-libs)"
 
 clean:
 	rm -f $(BINARY)
-
-configure:
-	@test -d ../md-libs || { echo "../md-libs not found: clone github.com/dimkarp93/md-libs next to this repository"; exit 1; }
-	@test -d ../install-libs || { echo "../install-libs not found: clone github.com/dimkarp93/install-libs next to this repository"; exit 1; }
-	cp go.work.local go.work
-	go build -o /dev/null ./...
-
-unconfigure:
-	rm -f go.work go.work.sum
 
 bump-patch:
 	@v=$$(tr -d '[:space:]' < versions.txt); MAJ=$${v%%.*}; rest=$${v#*.}; MIN=$${rest%%.*}; PAT=$${rest##*.}; printf '%s.%s.%s\n' "$$MAJ" "$$MIN" "$$((PAT + 1))" > versions.txt; cat versions.txt
@@ -62,3 +52,13 @@ bump-minor:
 
 bump-major:
 	@v=$$(tr -d '[:space:]' < versions.txt); MAJ=$${v%%.*}; printf '%s.0.0\n' "$$((MAJ + 1))" > versions.txt; cat versions.txt
+
+vendor:
+	GOWORK=off go mod tidy
+	GOWORK=off go mod vendor
+
+vendor-check:
+	GOWORK=off go mod vendor
+	test -z "$$(git status --porcelain -- go.mod go.sum vendor/ | tee /dev/stderr)"
+
+.PHONY: vendor vendor-check

@@ -85,26 +85,13 @@ Removes the built binary.
 
 Markdown parsing, heading filtering and the rendering contract live in the shared library [md-libs](https://github.com/dimkarp93/md-libs) — the same library is used by [md-pdf](https://github.com/dimkarp93/md-pdf). What remains in this repository is only the OOXML rendering and the flag parsing.
 
-A normal build pulls md-libs from GitHub as a dependency, nothing has to be configured:
+The dependencies, md-libs included, are vendored: `make build` and the tests take them from `vendor/` only (the Makefile exports `GOWORK=off` and `GOFLAGS=-mod=vendor`), nothing has to be set up and no network is needed:
 
 ```bash
 make build
 ```
 
-If you need to change the library and the CLI at the same time, clone md-libs next to this repository and enable the workspace:
-
-```bash
-git clone https://github.com/dimkarp93/md-libs ../md-libs
-make configure
-```
-
-`make configure` copies `go.work.local` to `go.work` — after that the build and the tests take md-libs from the neighbouring directory instead of the network. `go.work` itself is not committed (it is in `.gitignore`), so CI and `go install` keep working with the published version.
-
-```bash
-make unconfigure
-```
-
-Returns the build to the published version of the library.
+To change the library and the CLI at the same time, publish a new version of md-libs first and then update the dependency here (see below).
 
 ### Tests
 
@@ -122,7 +109,10 @@ Upgrading to a new version of md-libs:
 
 ```bash
 GOWORK=off go get github.com/dimkarp93/md-libs@v0.1.1
+make vendor
 ```
+
+`make vendor-check` verifies that `vendor/` matches `go.mod`.
 
 ## License
 

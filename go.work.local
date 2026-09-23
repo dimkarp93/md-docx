@@ -1,8 +1,0 @@
-go 1.26.1
-
-use .
-
-replace (
-	github.com/dimkarp93/install-libs => ../install-libs
-	github.com/dimkarp93/md-libs => ../md-libs
-)
