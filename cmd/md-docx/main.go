@@ -7,6 +7,7 @@ import (
 	"os"
 
 	"github.com/dimkarp93/install-libs/buildinfo"
+	"github.com/dimkarp93/install-libs/shellcomplete"
 	mdlib "github.com/dimkarp93/md-libs"
 )
 
@@ -38,6 +39,19 @@ func main() {
 	flag.BoolVar(showVersion, "v", false, "print version and exit")
 	showOrigin := flag.Bool("origin", false, "print the repository the binary was built from and exit")
 	showBuildInfo := flag.Bool("buildinfo", false, "print build metadata and exit")
+
+	spec := shellcomplete.Spec{
+		Bin: "md-docx",
+		Flags: shellcomplete.With(shellcomplete.FromFlagSet(flag.CommandLine),
+			shellcomplete.Flag{Name: "-in", Files: true},
+			shellcomplete.Flag{Name: "-out", Files: true},
+		),
+		Args: shellcomplete.Anything,
+	}
+	if code, ok := spec.Handle(os.Stdout, os.Stderr, os.Args[1:]); ok {
+		os.Exit(code)
+	}
+
 	flag.Parse()
 
 	switch {
