@@ -25,7 +25,7 @@ The binary appears at `./bin/md-docx`.
 ## Usage
 
 ```bash
-./bin/md-docx --in input.md --out output.docx
+./bin/md-docx convert --in input.md --out output.docx
 ```
 
 - `--in` (optional) — path to the source Markdown file. If omitted, reads from stdin.
@@ -36,7 +36,7 @@ The binary appears at `./bin/md-docx`.
 stdin/stdout are supported as well:
 
 ```bash
-cat input.md | ./bin/md-docx > output.docx
+cat input.md | ./bin/md-docx convert > output.docx
 ```
 
 ### Frontmatter and pages
@@ -48,7 +48,7 @@ Every other line consisting of exactly `---` is a page break — they split the 
 By default the `.docx` contains every page except page 0. To pick specific pages:
 
 ```bash
-./bin/md-docx --in input.md --pages=1,3-5 --out output.docx
+./bin/md-docx convert --in input.md --pages=1,3-5 --out output.docx
 ```
 
 ### Heading filter
@@ -56,7 +56,7 @@ By default the `.docx` contains every page except page 0. To pick specific pages
 `--heads` limits the output to the content under the given headings (and their nested content). The format is a comma-separated list where each item looks like `h<level>:<name>`, or just `<name>` without a level — in which case a match is looked for at any level:
 
 ```bash
-./bin/md-docx --in input.md --heads=h2:result,h3:resume,summary --out output.docx
+./bin/md-docx convert --in input.md --heads=h2:result,h3:resume,summary --out output.docx
 ```
 
 This means: keep only what is inside the level-2 heading "result", inside the level-3 heading "resume", or inside a heading "summary" at any level (the comparison is exact, ignoring case and markdown markup in the heading text). A heading is "nested" inside another if it comes after it and has a deeper level — the nesting ends at the first heading of the same or a higher level.
@@ -68,7 +68,7 @@ Between every two adjacent selected pages a real page break is added to the resu
 `--root-head-hide` — when passed together with `--heads`, hides the matched headings themselves but keeps their content (including nested headings):
 
 ```bash
-./bin/md-docx --in input.md --heads=result --root-head-hide --out output.docx
+./bin/md-docx convert --in input.md --heads=result --root-head-hide --out output.docx
 ```
 
 If `--heads` is not given, there is no filtering — all the content of the selected pages is emitted.

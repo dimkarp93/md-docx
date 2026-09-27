@@ -29,49 +29,115 @@ func build() buildinfo.Info {
 	}
 }
 
-func main() {
-	inPath := flag.String("in", "", "input markdown file (default: stdin)")
-	outPath := flag.String("out", "", "output docx file (default: stdout)")
-	pagesFlag := flag.String("pages", "", "pages to include, e.g. 1,3-5 (default: all pages except 0)")
-	headsFlag := flag.String("heads", "", "heading filters, e.g. h2:result,h3:resume")
-	rootHeadHide := flag.Bool("root-head-hide", false, "hide headings matched by --heads, keep their content")
-	showVersion := flag.Bool("version", false, "print version and exit")
-	flag.BoolVar(showVersion, "v", false, "print version and exit")
-	showOrigin := flag.Bool("origin", false, "print the repository the binary was built from and exit")
-	showBuildInfo := flag.Bool("buildinfo", false, "print build metadata and exit")
+type convertFlags struct {
+	in           *string
+	out          *string
+	pages        *string
+	heads        *string
+	rootHeadHide *bool
+}
 
-	spec := shellcomplete.Spec{
-		Bin: "md-docx",
-		Flags: shellcomplete.With(shellcomplete.FromFlagSet(flag.CommandLine),
-			shellcomplete.Flag{Name: "-in", Files: true},
-			shellcomplete.Flag{Name: "-out", Files: true},
-		),
-		Args: shellcomplete.Anything,
+func newConvertFlagSet() (*flag.FlagSet, convertFlags) {
+	fs := flag.NewFlagSet("convert", flag.ContinueOnError)
+	f := convertFlags{
+		in:           fs.String("in", "", "input markdown file (default: stdin)"),
+		out:          fs.String("out", "", "output docx file (default: stdout)"),
+		pages:        fs.String("pages", "", "pages to include, e.g. 1,3-5 (default: all pages except 0)"),
+		heads:        fs.String("heads", "", "heading filters, e.g. h2:result,h3:resume"),
+		rootHeadHide: fs.Bool("root-head-hide", false, "hide headings matched by --heads, keep their content"),
 	}
-	if code, ok := spec.Handle(os.Stdout, os.Stderr, os.Args[1:]); ok {
+	return fs, f
+}
+
+func completionSpec() shellcomplete.Spec {
+	convertFS, _ := newConvertFlagSet()
+	return shellcomplete.Spec{
+		Bin: "md-docx",
+		Flags: []shellcomplete.Flag{
+			{Name: "--version", Bool: true},
+			{Name: "-v", Bool: true},
+			{Name: "--origin", Bool: true},
+			{Name: "--buildinfo", Bool: true},
+		},
+		Commands: []shellcomplete.Command{
+			{Name: "convert", Flags: shellcomplete.With(shellcomplete.FromFlagSet(convertFS),
+				shellcomplete.Flag{Name: "-in", Files: true},
+				shellcomplete.Flag{Name: "-out", Files: true},
+			)},
+			{Name: "help"},
+		},
+	}
+}
+
+func usage(w io.Writer) {
+	fmt.Fprintln(w, "Usage: md-docx <command> [flags]")
+	fmt.Fprintln(w)
+	fmt.Fprintln(w, "Commands:")
+	fmt.Fprintln(w, "  convert [flags]                render markdown into a .docx (see: md-docx convert -h)")
+	fmt.Fprintln(w, "  help                            show this help")
+	fmt.Fprintln(w, "  completion bash|zsh             print a shell completion script, for: source <(md-docx completion bash)")
+	fmt.Fprintln(w, "  install-completions [SHELL]     install the completion script and wire it into ~/.bashrc / ~/.zshrc")
+	fmt.Fprintln(w, "  uninstall-completions [SHELL]   remove the installed completion script")
+	fmt.Fprintln(w)
+	fmt.Fprintln(w, "Flags:")
+	fmt.Fprintln(w, "  --version, -v                   print version and exit")
+	fmt.Fprintln(w, "  --origin                        print the repository the binary was built from and exit")
+	fmt.Fprintln(w, "  --buildinfo                      print build metadata and exit")
+	fmt.Fprintln(w, "  -h, --help, -help                show this help")
+}
+
+func main() {
+	args := os.Args[1:]
+
+	spec := completionSpec()
+	if code, ok := spec.Handle(os.Stdout, os.Stderr, args); ok {
 		os.Exit(code)
 	}
 
-	flag.Parse()
+	if len(args) == 0 {
+		usage(os.Stderr)
+		os.Exit(2)
+	}
 
-	switch {
-	case *showVersion:
+	switch args[0] {
+	case "help", "-h", "--help", "-help":
+		usage(os.Stdout)
+		return
+	case "--version", "-v":
 		fmt.Println(build().VersionString())
-		os.Exit(0)
-	case *showOrigin:
+		return
+	case "--origin":
 		fmt.Println(build().OriginString())
-		os.Exit(0)
-	case *showBuildInfo:
+		return
+	case "--buildinfo":
 		build().Print()
-		os.Exit(0)
+		return
+	case "convert":
+		runConvert(args[1:])
+	default:
+		fmt.Fprintf(os.Stderr, "md-docx: unknown command %q\n\n", args[0])
+		usage(os.Stderr)
+		os.Exit(2)
+	}
+}
+
+func runConvert(args []string) {
+	fs, f := newConvertFlagSet()
+	fs.Usage = func() {
+		fmt.Fprintln(os.Stderr, "Usage: md-docx convert [flags]")
+		fmt.Fprintln(os.Stderr)
+		fs.PrintDefaults()
+	}
+	if err := fs.Parse(args); err != nil {
+		os.Exit(2)
 	}
 
 	var data []byte
 	var err error
-	if *inPath == "" {
+	if *f.in == "" {
 		data, err = io.ReadAll(os.Stdin)
 	} else {
-		data, err = os.ReadFile(*inPath)
+		data, err = os.ReadFile(*f.in)
 	}
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "read input: %v\n", err)
@@ -79,9 +145,9 @@ func main() {
 	}
 
 	blocks, err := mdlib.Prepare(string(data), mdlib.Options{
-		Pages:            *pagesFlag,
-		Heads:            *headsFlag,
-		HideMatchedHeads: *rootHeadHide,
+		Pages:            *f.pages,
+		Heads:            *f.heads,
+		HideMatchedHeads: *f.rootHeadHide,
 	})
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%v\n", err)
@@ -91,14 +157,14 @@ func main() {
 	body := renderBody(blocks)
 
 	out := io.Writer(os.Stdout)
-	if *outPath != "" {
-		f, err := os.Create(*outPath)
+	if *f.out != "" {
+		file, err := os.Create(*f.out)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "create %s: %v\n", *outPath, err)
+			fmt.Fprintf(os.Stderr, "create %s: %v\n", *f.out, err)
 			os.Exit(1)
 		}
-		defer f.Close()
-		out = f
+		defer file.Close()
+		out = file
 	}
 
 	if err := writeDocx(out, body); err != nil {

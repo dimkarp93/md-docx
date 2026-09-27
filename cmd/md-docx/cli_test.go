@@ -66,7 +66,7 @@ func documentXML(t *testing.T, docx []byte) string {
 }
 
 func TestCLIReadsStdinAndWritesStdout(t *testing.T) {
-	doc := documentXML(t, runCLI(t, cliSample))
+	doc := documentXML(t, runCLI(t, cliSample, "convert"))
 
 	if !strings.Contains(doc, "intro text") {
 		t.Error("stdout docx is missing content from page 1")
@@ -83,7 +83,7 @@ func TestCLIWritesOutputFile(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	runCLI(t, "", "--in", in, "--out", out)
+	runCLI(t, "", "convert", "--in", in, "--out", out)
 
 	data, err := os.ReadFile(out)
 	if err != nil {
@@ -95,7 +95,7 @@ func TestCLIWritesOutputFile(t *testing.T) {
 }
 
 func TestCLIPagesFlag(t *testing.T) {
-	doc := documentXML(t, runCLI(t, cliSample, "--pages", "2"))
+	doc := documentXML(t, runCLI(t, cliSample, "convert", "--pages", "2"))
 
 	if !strings.Contains(doc, "keep me") {
 		t.Error("--pages 2 dropped the requested page")
@@ -106,7 +106,7 @@ func TestCLIPagesFlag(t *testing.T) {
 }
 
 func TestCLIHeadsFlagWiring(t *testing.T) {
-	doc := documentXML(t, runCLI(t, cliSample, "--heads", "h2:result"))
+	doc := documentXML(t, runCLI(t, cliSample, "convert", "--heads", "h2:result"))
 
 	if !strings.Contains(doc, "keep me") {
 		t.Error("--heads dropped the matched section")
@@ -122,7 +122,7 @@ func TestCLIHeadsFlagWiring(t *testing.T) {
 }
 
 func TestCLIRootHeadHideWiring(t *testing.T) {
-	doc := documentXML(t, runCLI(t, cliSample, "--heads", "h2:result", "--root-head-hide"))
+	doc := documentXML(t, runCLI(t, cliSample, "convert", "--heads", "h2:result", "--root-head-hide"))
 
 	if !strings.Contains(doc, "keep me") {
 		t.Error("--root-head-hide dropped the section content")
@@ -139,7 +139,7 @@ func TestCLIVersion(t *testing.T) {
 }
 
 func TestCLIRejectsBadPages(t *testing.T) {
-	cmd := exec.Command(cliBinary, "--pages", "5-1")
+	cmd := exec.Command(cliBinary, "convert", "--pages", "5-1")
 	cmd.Stdin = strings.NewReader(cliSample)
 
 	out, err := cmd.CombinedOutput()
@@ -148,5 +148,40 @@ func TestCLIRejectsBadPages(t *testing.T) {
 	}
 	if !strings.Contains(string(out), "5-1") {
 		t.Errorf("error message does not mention the bad range: %s", out)
+	}
+}
+
+func TestCLIHelp(t *testing.T) {
+	for _, args := range [][]string{{"help"}, {"-h"}, {"--help"}, {"-help"}} {
+		cmd := exec.Command(cliBinary, args...)
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			t.Fatalf("%v: %v\n%s", args, err, out)
+		}
+		if !strings.Contains(string(out), "Usage:") {
+			t.Errorf("%v: no usage text: %s", args, out)
+		}
+	}
+}
+
+func TestCLIUnknownCommandIsAnError(t *testing.T) {
+	cmd := exec.Command(cliBinary, "bogus")
+	out, err := cmd.CombinedOutput()
+	if err == nil {
+		t.Fatalf("expected a non-zero exit, got: %s", out)
+	}
+	if !strings.Contains(string(out), "bogus") {
+		t.Errorf("error does not name the bad command: %s", out)
+	}
+}
+
+func TestCLINoArgsIsAnError(t *testing.T) {
+	cmd := exec.Command(cliBinary)
+	out, err := cmd.CombinedOutput()
+	if err == nil {
+		t.Fatalf("expected a non-zero exit, got: %s", out)
+	}
+	if !strings.Contains(string(out), "Usage:") {
+		t.Errorf("no usage text: %s", out)
 	}
 }
